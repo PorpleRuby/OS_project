@@ -1428,7 +1428,7 @@
 
             // Show/hide time quantum input for Round Robin
             const timeQuantumGroup = document.getElementById('timeQuantumGroup');
-            if (selectedAlgorithm === 'RR') {
+            if (selectedAlgorithm === 'RR' || selectedAlgorithm === 'MLQ') {
                 timeQuantumGroup.style.display = 'block';
                 document.getElementById('timeQuantum').required = true;
             } else {
@@ -1622,7 +1622,7 @@
 
                     // Show/hide time quantum input for Round Robin
                     const timeQuantumGroup = document.getElementById('timeQuantumGroup');
-                    if (this.dataset.value === 'RR') {
+                    if (this.dataset.value === 'RR' || this.dataset.value === 'MLQ') {
                         timeQuantumGroup.style.display = 'block';
                         document.getElementById('timeQuantum').required = true;
                     } else {
