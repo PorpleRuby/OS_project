@@ -208,20 +208,22 @@
 
         .process-input-row {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 15px;
             margin-bottom: 15px;
             align-items: end;
         }
 
         .process-input-row>div:first-child {
-            /* Adjust the label to be clearer on mobile */
-            grid-column: span 5;
+            /* Process label should only take 1 column, not span */
+            grid-column: span 1;
+            display: flex;
+            align-items: center;
         }
 
         .process-header {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 15px;
             margin-bottom: 10px;
             font-weight: 700;
@@ -229,9 +231,17 @@
             padding: 0 5px;
         }
 
+        .process-header>div:first-child {
+            text-align: center;
+        }
+
         .process-input-row>div:first-child label {
             /* Reset for the main label */
             display: block;
+            width: 100%;
+            text-align: center;
+            font-weight: 600;
+            color: var(--dark);
         }
 
         .process-input-row>div:not(:first-child) label {
@@ -563,7 +573,7 @@
         /* --- Media Queries --- */
         @media (max-width: 992px) {
             .process-input-row {
-                grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+                grid-template-columns: 1fr 1fr;
                 /* Keep 5 columns for better process visibility */
             }
 
@@ -575,6 +585,13 @@
             .process-input-row>div:first-child {
                 /* Make process ID span the whole row for label */
                 grid-column: span 5;
+            }
+
+            .process-input-row>div:not(:first-child) label {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 0.85rem;
+                color: var(--gray);
             }
 
             .process-input-row>div:not(:first-child) {
@@ -696,6 +713,7 @@
                 <h2><i class="fas fa-microchip"></i> Step 2: Process Details</h2>
                 <div class="process-input-container" id="processInputsContainer">
                     <div class="process-header">
+                        <div>Process</div>
                         <div>Arrival Time</div>
                         <div>Burst Time</div>
                         <div>Priority</div>
@@ -756,17 +774,19 @@
                             <p>Multilevel Queue Scheduling</p>
                         </div>
                     </div>
+
+                    <div class="algorithm-option" data-value="RR">
+                        <div class="algorithm-icon">
+                            <i class="fas fa-redo-alt"></i>
+                        </div>
+                        <div class="algorithm-info">
+                            <h3>Round Robin</h3>
+                            <p>Time quantum preemptive</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="algorithm-option" data-value="RR">
-                    <div class="algorithm-icon">
-                        <i class="fas fa-redo-alt"></i>
-                    </div>
-                    <div class="algorithm-info">
-                        <h3>Round Robin</h3>
-                        <p>Time quantum preemptive</p>
-                    </div>
-                </div>
+
 
                 <div class="form-group" style="margin-top: 30px;">
                     <button type="submit" id="calculateBtn">
@@ -1322,11 +1342,11 @@
                 else {
                     isDisabled = true;
                     // Reset value of non-required fields to initial state when disabled
-                    const id = parseInt(input.getAttribute('data-id'));
-                    const processIndex = window.processData.findIndex(p => p.id === id);
-                    if (processIndex !== -1) {
-                        window.processData[processIndex][key] = initialProcessState[key];
-                    }
+                    // const id = parseInt(input.getAttribute('data-id'));
+                    // const processIndex = window.processData.findIndex(p => p.id === id);
+                    // if (processIndex !== -1) {
+                    //     window.processData[processIndex][key] = initialProcessState[key];
+                    // }
 
                     if (key === 'prio') {
                         // Priority is still needed for MLQ in case process is in Q2
@@ -1498,7 +1518,9 @@
                     selectedAlgorithm === 'FCFS' ? 'FCFS' :
                         selectedAlgorithm === 'SJF' ? 'SJF' :
                             selectedAlgorithm === 'Prio' ? 'Priority' :
-                                selectedAlgorithm === 'Deadline' ? 'Deadline' : 'MLQ';
+                                selectedAlgorithm === 'Deadline' ? 'Deadline' :
+                                    selectedAlgorithm === 'MLQ' ? 'MLQ' :
+                                        selectedAlgorithm === 'RR' ? 'Round Robin' : 'Unknown';
 
                 renderMetrics(results);
                 renderGanttChart(gantt);
