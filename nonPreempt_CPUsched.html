@@ -380,15 +380,8 @@
             font-size: 0.9rem;
             color: var(--dark);
             transform: translateX(-50%);
-            /* border-left: 2px solid var(--dark);
-            padding-left: 5px; */
             line-height: 1;
         }
-
-        /* .time-label:first-child {
-            border-left: none;
-            padding-left: 0;
-        } */
 
         /* --- Metrics Table --- */
         table {
@@ -574,7 +567,6 @@
         @media (max-width: 992px) {
             .process-input-row {
                 grid-template-columns: 1fr 1fr;
-                /* Keep 5 columns for better process visibility */
             }
 
             .process-header {
@@ -583,7 +575,6 @@
             }
 
             .process-input-row>div:first-child {
-                /* Make process ID span the whole row for label */
                 grid-column: span 5;
             }
 
@@ -595,13 +586,7 @@
             }
 
             .process-input-row>div:not(:first-child) {
-                /* All other inputs span 2 columns */
                 grid-column: span 2;
-            }
-
-            /* Show sub-labels on mobile */
-            .process-input-row>div:not(:first-child) label {
-                display: block;
             }
         }
 
@@ -697,17 +682,7 @@
                         <input type="number" id="numProcesses" min="2" max="9" value="3" required>
                     </div>
                 </div>
-
-                <div class="form-group" id="timeQuantumGroup" style="display: none;">
-                    <label for="timeQuantum">Time Quantum (for Round Robin)</label>
-                    <div class="input-with-icon">
-                        <i class="fas fa-hourglass"></i>
-                        <input type="number" id="timeQuantum" min="1" value="2">
-                    </div>
-                </div>
             </div>
-
-
 
             <div class="card">
                 <h2><i class="fas fa-microchip"></i> Step 2: Process Details</h2>
@@ -774,19 +749,7 @@
                             <p>Multilevel Queue Scheduling</p>
                         </div>
                     </div>
-<!-- 
-                    <div class="algorithm-option" data-value="RR">
-                        <div class="algorithm-icon">
-                            <i class="fas fa-redo-alt"></i>
-                        </div>
-                        <div class="algorithm-info">
-                            <h3>Round Robin</h3>
-                            <p>Time quantum preemptive</p>
-                        </div>
-                    </div> -->
                 </div>
-
-
 
                 <div class="form-group" style="margin-top: 30px;">
                     <button type="submit" id="calculateBtn">
@@ -849,7 +812,7 @@
     </div>
 
     <script>
-        // ============== ALGORITHM FUNCTIONS (KEEPING ORIGINAL LOGIC) ==============
+        // ============== ALGORITHM FUNCTIONS (UPDATED - REMOVED RR) ==============
 
         // Helper function to find the next arrival time
         function findNextArrival(remainingProcesses) {
@@ -1031,26 +994,21 @@
             return { results, gantt };
         }
 
-        // MLQ (Multilevel Queue) with FCFS, SJF, and RR
+        // MLQ (Multilevel Queue) - NON-PREEMPTIVE VERSION (Removed RR queue)
         function calculateMLQ(processes) {
             let n = processes.length;
             let remainingProcesses = [...processes].map(p => ({
                 ...p,
-                remainingBt: p.bt,  // For RR queue
                 isCompleted: false
             }));
             let currentTime = 0;
             let results = [];
             let gantt = [];
 
-            // Get time quantum from input for RR queue
-            const timeQuantum = parseInt(document.getElementById('timeQuantum').value) || 2;
-
             while (results.length < n) {
-                // Separate processes by queue
+                // Separate processes by queue (only 2 queues now)
                 let q1_fcfs = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 1);
                 let q2_sjf = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 2);
-                let q3_rr = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 3);
 
                 let selectedProcess = null;
                 let queueType = null;
@@ -1072,14 +1030,6 @@
                     selectedProcess = q2_sjf[0];
                     queueType = 'SJF';
                 }
-                // Queue 3: RR (Lowest Priority)
-                else if (q3_rr.length > 0) {
-                    // For RR, we need to execute in round robin fashion
-                    // Sort by arrival time for fairness
-                    q3_rr.sort((a, b) => a.at - b.at);
-                    selectedProcess = q3_rr[0];
-                    queueType = 'RR';
-                }
 
                 if (!selectedProcess) {
                     let nextArrival = findNextArrival(remainingProcesses);
@@ -1094,176 +1044,26 @@
 
                 let selectedIndex = remainingProcesses.findIndex(p => p.id === selectedProcess.id);
 
-                if (queueType === 'RR') {
-                    // Execute RR for time quantum or remaining burst time
-                    let executionTime = Math.min(timeQuantum, selectedProcess.remainingBt);
-                    let startTime = currentTime;
-                    let endTime = startTime + executionTime;
-
-                    selectedProcess.remainingBt -= executionTime;
-
-                    gantt.push({
-                        id: selectedProcess.id,
-                        start: startTime,
-                        end: endTime,
-                        type: 'process'
-                    });
-
-                    currentTime = endTime;
-
-                    // If process is completed
-                    if (selectedProcess.remainingBt <= 0) {
-                        selectedProcess.isCompleted = true;
-                        let completionTime = endTime;
-                        let tat = completionTime - selectedProcess.at;
-                        let wt = tat - selectedProcess.bt;
-
-                        results.push({
-                            ...selectedProcess,
-                            ct: completionTime,
-                            tat: tat,
-                            wt: wt
-                        });
-                    }
-                    // If not completed, it will go back to the queue in next iteration
-                } else {
-                    // For FCFS and SJF, execute to completion
-                    let startTime = currentTime;
-                    let completionTime = startTime + selectedProcess.bt;
-                    let tat = completionTime - selectedProcess.at;
-                    let wt = tat - selectedProcess.bt;
-
-                    currentTime = completionTime;
-                    remainingProcesses[selectedIndex].isCompleted = true;
-                    gantt.push({
-                        id: selectedProcess.id,
-                        start: startTime,
-                        end: completionTime,
-                        type: 'process'
-                    });
-                    results.push({
-                        ...selectedProcess,
-                        ct: completionTime,
-                        tat: tat,
-                        wt: wt
-                    });
-                }
-            }
-
-            return { results, gantt };
-        }
-
-        // Round Robin Scheduling
-        function calculateRR(processes) {
-            let n = processes.length;
-            let remainingProcesses = [...processes].map(p => ({
-                ...p,
-                remainingBt: p.bt,
-                isCompleted: false
-            }));
-            let currentTime = 0;
-            let results = [];
-            let gantt = [];
-
-            // Get time quantum from input (default to 2)
-            const timeQuantum = parseInt(document.getElementById('timeQuantum').value) || 2;
-
-            let queue = [];
-            let nextArrivalIndex = 0;
-
-            // Sort processes by arrival time
-            remainingProcesses.sort((a, b) => {
-                if (a.at !== b.at) return a.at - b.at;
-                return a.id - b.id;
-            });
-
-            // Add processes that arrive at time 0
-            while (nextArrivalIndex < n && remainingProcesses[nextArrivalIndex].at <= currentTime) {
-                queue.push(remainingProcesses[nextArrivalIndex]);
-                nextArrivalIndex++;
-            }
-
-            // If no process arrives at time 0, handle idle time
-            if (queue.length === 0 && nextArrivalIndex < n) {
-                let nextArrival = remainingProcesses[nextArrivalIndex].at;
-                gantt.push({ id: 'idle', start: currentTime, end: nextArrival, type: 'idle' });
-                currentTime = nextArrival;
-
-                // Add all processes arriving at this time
-                while (nextArrivalIndex < n && remainingProcesses[nextArrivalIndex].at <= currentTime) {
-                    queue.push(remainingProcesses[nextArrivalIndex]);
-                    nextArrivalIndex++;
-                }
-            }
-
-            while (results.length < n) {
-                if (queue.length === 0) {
-                    // Find next arrival if queue is empty
-                    if (nextArrivalIndex < n) {
-                        let nextProcess = remainingProcesses[nextArrivalIndex];
-                        let idleStart = currentTime;
-                        currentTime = nextProcess.at;
-                        gantt.push({ id: 'idle', start: idleStart, end: currentTime, type: 'idle' });
-
-                        while (nextArrivalIndex < n && remainingProcesses[nextArrivalIndex].at <= currentTime) {
-                            queue.push(remainingProcesses[nextArrivalIndex]);
-                            nextArrivalIndex++;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                // Get next process from queue
-                let currentProcess = queue.shift();
+                // Execute to completion (non-preemptive)
                 let startTime = currentTime;
+                let completionTime = startTime + selectedProcess.bt;
+                let tat = completionTime - selectedProcess.at;
+                let wt = tat - selectedProcess.bt;
 
-                // Execute for time quantum or remaining burst time (whichever is smaller)
-                let executionTime = Math.min(timeQuantum, currentProcess.remainingBt);
-                let endTime = startTime + executionTime;
-
-                // Update remaining burst time
-                currentProcess.remainingBt -= executionTime;
-
-                // Check for arrivals during execution
-                while (nextArrivalIndex < n && remainingProcesses[nextArrivalIndex].at <= endTime) {
-                    let arrivingProcess = remainingProcesses[nextArrivalIndex];
-                    // Check if process is already in queue
-                    let alreadyInQueue = queue.some(p => p.id === arrivingProcess.id) ||
-                        (currentProcess.id === arrivingProcess.id);
-                    if (!alreadyInQueue && arrivingProcess.remainingBt > 0) {
-                        queue.push(arrivingProcess);
-                    }
-                    nextArrivalIndex++;
-                }
-
-                // Add to gantt chart
+                currentTime = completionTime;
+                remainingProcesses[selectedIndex].isCompleted = true;
                 gantt.push({
-                    id: currentProcess.id,
+                    id: selectedProcess.id,
                     start: startTime,
-                    end: endTime,
+                    end: completionTime,
                     type: 'process'
                 });
-
-                currentTime = endTime;
-
-                // If process is not completed, add it back to queue
-                if (currentProcess.remainingBt > 0) {
-                    queue.push(currentProcess);
-                } else {
-                    // Process completed
-                    currentProcess.isCompleted = true;
-                    let completionTime = endTime;
-                    let tat = completionTime - currentProcess.at;
-                    let wt = tat - currentProcess.bt;
-
-                    results.push({
-                        ...currentProcess,
-                        ct: completionTime,
-                        tat: tat,
-                        wt: wt
-                    });
-                }
+                results.push({
+                    ...selectedProcess,
+                    ct: completionTime,
+                    tat: tat,
+                    wt: wt
+                });
             }
 
             return { results, gantt };
@@ -1274,14 +1074,13 @@
         // Global variable to store process data
         window.processData = [];
 
-        // Algorithm mapping
+        // Algorithm mapping (Removed RR)
         const algorithms = {
             'FCFS': calculateFCFS,
             'SJF': calculateSJF,
             'Prio': calculateNonPreemptivePriority,
             'Deadline': calculateDeadline,
-            'MLQ': calculateMLQ,
-            'RR': calculateRR
+            'MLQ': calculateMLQ
         };
 
         const initialProcessState = { at: 0, bt: 0, prio: 0, deadline: 0, queue: 1 };
@@ -1346,7 +1145,6 @@
                             <select id="queue${i}" data-id="${i}" data-key="queue" required onchange="window.handleInputChange(this)">
                                 <option value="1" ${p.queue == 1 ? 'selected' : ''}>FCFS</option>
                                 <option value="2" ${p.queue == 2 ? 'selected' : ''}>SJF</option>
-                                <option value="3" ${p.queue == 3 ? 'selected' : ''}>RR</option>
                             </select>
                         </div>
                     </div>
@@ -1409,12 +1207,6 @@
                 // For other cases, disable the input
                 else {
                     isDisabled = true;
-                    // Reset value of non-required fields to initial state when disabled
-                    // const id = parseInt(input.getAttribute('data-id'));
-                    // const processIndex = window.processData.findIndex(p => p.id === id);
-                    // if (processIndex !== -1) {
-                    //     window.processData[processIndex][key] = initialProcessState[key];
-                    // }
 
                     if (key === 'prio') {
                         // Priority is still needed for MLQ in case process is in Q2
@@ -1425,17 +1217,6 @@
                 input.disabled = isDisabled;
                 input.required = isRequired;
             });
-
-            // Show/hide time quantum input for Round Robin
-            const timeQuantumGroup = document.getElementById('timeQuantumGroup');
-            if (selectedAlgorithm === 'RR' || selectedAlgorithm === 'MLQ') {
-                timeQuantumGroup.style.display = 'block';
-                document.getElementById('timeQuantum').required = true;
-            } else {
-                timeQuantumGroup.style.display = 'none';
-                document.getElementById('timeQuantum').required = false;
-            }
-
 
             updateStepIndicator(3);
         }
@@ -1472,7 +1253,7 @@
             }
         }
 
-        // Render Gantt chart visualization (UPDATED for Image Style)
+        // Render Gantt chart visualization
         function renderGanttChart(ganttData) {
             const chartDiv = document.getElementById('ganttChart');
             const labelContainer = document.getElementById('timeLabelContainer');
@@ -1533,7 +1314,7 @@
             const zeroLabel = labelContainer.querySelector('.time-label');
             if (zeroLabel) {
                 zeroLabel.style.left = '0%';
-                zeroLabel.style.transform = 'none'; // No need to translate 0
+                zeroLabel.style.transform = 'none';
             }
         }
 
@@ -1587,8 +1368,7 @@
                         selectedAlgorithm === 'SJF' ? 'SJF' :
                             selectedAlgorithm === 'Prio' ? 'Priority' :
                                 selectedAlgorithm === 'Deadline' ? 'Deadline' :
-                                    selectedAlgorithm === 'MLQ' ? 'MLQ' :
-                                        selectedAlgorithm === 'RR' ? 'Round Robin' : 'Unknown';
+                                    selectedAlgorithm === 'MLQ' ? 'MLQ' : 'Unknown';
 
                 renderMetrics(results);
                 renderGanttChart(gantt);
@@ -1619,16 +1399,6 @@
 
                     // Update required fields
                     updateInputRequiredStatus();
-
-                    // Show/hide time quantum input for Round Robin
-                    const timeQuantumGroup = document.getElementById('timeQuantumGroup');
-                    if (this.dataset.value === 'RR' || this.dataset.value === 'MLQ') {
-                        timeQuantumGroup.style.display = 'block';
-                        document.getElementById('timeQuantum').required = true;
-                    } else {
-                        timeQuantumGroup.style.display = 'none';
-                        document.getElementById('timeQuantum').required = false;
-                    }
                 });
             });
         }
@@ -1641,11 +1411,6 @@
             // Use 'change' and 'input' for real-time updates to inputs
             document.getElementById('numProcesses').addEventListener('change', generateProcessInputs);
             document.getElementById('numProcesses').addEventListener('input', generateProcessInputs);
-
-            const timeQuantumInput = document.getElementById('timeQuantum');
-            if (timeQuantumInput) {
-                timeQuantumInput.value = 2; // Default time quantum
-            }
         };
     </script>
 </body>
