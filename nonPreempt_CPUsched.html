@@ -1010,76 +1010,109 @@
         }
 
         // MLQ (Multilevel Queue) with FCFS and SJF
-        function calculateMLQ(processes) {
-            let n = processes.length;
-            let remainingProcesses = [...processes].map(p => ({
-                ...p,
-                isCompleted: false
-            }));
-            let currentTime = 0;
-            let results = [];
-            let gantt = [];
-
-            while (results.length < n) {
-                // Separate processes by queue
-                let q1_fcfs = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 1);
-                let q2_sjf = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 2);
-
-                let selectedProcess = null;
-
-                // Queue 1: FCFS (Highest Priority)
-                if (q1_fcfs.length > 0) {
-                    // Q1: FCFS - sort by arrival time
-                    q1_fcfs.sort((a, b) => a.at - b.at);
-                    selectedProcess = q1_fcfs[0];
+        // ayoko na
+function calculateMLQ(processes) {
+    // Group processes by priority (which determines their queue)
+    let queues = {
+        1: [], // Highest priority - uses FCFS
+        2: [], // Medium priority - uses SJF  
+        3: []  // Lowest priority - uses FCFS
+    };
+    
+    // Assign each process to its queue based on priority
+    processes.forEach(p => {
+        // Map priority 1,2,3 to queues
+        if (p.prio === 1) queues[1].push({...p, completed: false});
+        else if (p.prio === 2) queues[2].push({...p, completed: false});
+        else queues[3].push({...p, completed: false});
+    });
+    
+    // Sort each queue according to its algorithm
+    // Queue 1 (FCFS): sort by arrival time
+    queues[1].sort((a, b) => a.at - b.at || a.id - b.id);
+    // Queue 2 (SJF): sort by burst time
+    queues[2].sort((a, b) => a.bt - b.bt || a.at - b.at || a.id - b.id);
+    // Queue 3 (FCFS): sort by arrival time
+    queues[3].sort((a, b) => a.at - b.at || a.id - b.id);
+    
+    let currentTime = 0;
+    let completed = 0;
+    let results = [];
+    let gantt = [];
+    let n = processes.length;
+    
+    while (completed < n) {
+        let processToRun = null;
+        let selectedQueue = null;
+        
+        // Check queues in priority order: 1 → 2 → 3
+        for (let q = 1; q <= 3; q++) {
+            // Find first available process in this queue
+            for (let i = 0; i < queues[q].length; i++) {
+                let p = queues[q][i];
+                if (!p.completed && p.at <= currentTime) {
+                    processToRun = p;
+                    selectedQueue = q;
+                    break;
                 }
-                // Queue 2: SJF (Medium Priority)
-                else if (q2_sjf.length > 0) {
-                    // Q2: SJF - sort by shortest burst time, then arrival time
-                    q2_sjf.sort((a, b) => {
-                        if (a.bt != b.bt) return a.bt - b.bt;
-                        return a.at - b.at;
-                    });
-                    selectedProcess = q2_sjf[0];
-                }
-
-                if (!selectedProcess) {
-                    let nextArrival = findNextArrival(remainingProcesses);
-                    if (nextArrival != undefined) {
-                        gantt.push({ id: 'idle', start: currentTime, end: nextArrival, type: 'idle' });
-                        currentTime = nextArrival;
-                    } else {
-                        break;
-                    }
-                    continue;
-                }
-
-                let selectedIndex = remainingProcesses.findIndex(p => p.id === selectedProcess.id);
-
-                // For FCFS and SJF, execute to completion
-                let startTime = currentTime;
-                let completionTime = startTime + selectedProcess.bt;
-                let tat = completionTime - selectedProcess.at;
-                let wt = tat - selectedProcess.bt;
-
-                currentTime = completionTime;
-                remainingProcesses[selectedIndex].isCompleted = true;
-                gantt.push({
-                    id: selectedProcess.id,
-                    start: startTime,
-                    end: completionTime,
-                    type: 'process'
-                });
-                results.push({
-                    ...selectedProcess,
-                    ct: completionTime,
-                    tat: tat,
-                    wt: wt
-                });
             }
-
-            return { results, gantt };
+            if (processToRun) break;
         }
+        
+        // If no process available, jump time
+        if (!processToRun) {
+            let nextArrival = Infinity;
+            // Check all queues for next arrival
+            for (let q = 1; q <= 3; q++) {
+                for (let p of queues[q]) {
+                    if (!p.completed && p.at < nextArrival) {
+                        nextArrival = p.at;
+                    }
+                }
+            }
+            
+            if (nextArrival === Infinity) break;
+            
+            // Add idle time
+            gantt.push({
+                id: 'idle',
+                start: currentTime,
+                end: nextArrival,
+                type: 'idle'
+            });
+            
+            currentTime = nextArrival;
+            continue;
+        }
+        
+        // Execute the process
+        let startTime = currentTime;
+        let endTime = currentTime + processToRun.bt;
+        
+        // Mark process as completed
+        let queueIndex = queues[selectedQueue].findIndex(p => p.id === processToRun.id);
+        queues[selectedQueue][queueIndex].completed = true;
+        
+        gantt.push({
+            id: processToRun.id,
+            start: startTime,
+            end: endTime,
+            type: 'process'
+        });
+        
+        results.push({
+            ...processToRun,
+            ct: endTime,
+            tat: endTime - processToRun.at,
+            wt: (endTime - processToRun.at) - processToRun.bt
+        });
+        
+        currentTime = endTime;
+        completed++;
+    }
+    
+    return { results, gantt };
+}
 
         // ============== DOM MANIPULATION ==============
 
