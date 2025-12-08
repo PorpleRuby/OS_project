@@ -994,7 +994,7 @@
             return { results, gantt };
         }
 
-        // MLQ (Multilevel Queue) - NON-PREEMPTIVE VERSION (Removed RR queue)
+        // MLQ (Multilevel Queue) with FCFS, SJF, and RR
         function calculateMLQ(processes) {
             let n = processes.length;
             let remainingProcesses = [...processes].map(p => ({
@@ -1011,14 +1011,12 @@
                 let q2_sjf = remainingProcesses.filter(p => p.at <= currentTime && !p.isCompleted && p.queue == 2);
 
                 let selectedProcess = null;
-                let queueType = null;
 
                 // Queue 1: FCFS (Highest Priority)
                 if (q1_fcfs.length > 0) {
                     // Q1: FCFS - sort by arrival time
                     q1_fcfs.sort((a, b) => a.at - b.at);
                     selectedProcess = q1_fcfs[0];
-                    queueType = 'FCFS';
                 }
                 // Queue 2: SJF (Medium Priority)
                 else if (q2_sjf.length > 0) {
@@ -1029,6 +1027,14 @@
                     });
                     selectedProcess = q2_sjf[0];
                     queueType = 'SJF';
+                }
+                // Queue 3: RR (Lowest Priority)
+                else if (q3_rr.length > 0) {
+                    // For RR, we need to execute in round robin fashion
+                    // Sort by arrival time for fairness
+                    q3_rr.sort((a, b) => a.at - b.at);
+                    selectedProcess = q3_rr[0];
+                    queueType = 'RR';
                 }
 
                 if (!selectedProcess) {
@@ -1044,11 +1050,44 @@
 
                 let selectedIndex = remainingProcesses.findIndex(p => p.id === selectedProcess.id);
 
-                // Execute to completion (non-preemptive)
-                let startTime = currentTime;
-                let completionTime = startTime + selectedProcess.bt;
-                let tat = completionTime - selectedProcess.at;
-                let wt = tat - selectedProcess.bt;
+                if (queueType === 'RR') {
+                    // Execute RR for time quantum or remaining burst time
+                    let executionTime = Math.min(timeQuantum, selectedProcess.remainingBt);
+                    let startTime = currentTime;
+                    let endTime = startTime + executionTime;
+
+                    selectedProcess.remainingBt -= executionTime;
+
+                    gantt.push({
+                        id: selectedProcess.id,
+                        start: startTime,
+                        end: endTime,
+                        type: 'process'
+                    });
+
+                    currentTime = endTime;
+
+                    // If process is completed
+                    if (selectedProcess.remainingBt <= 0) {
+                        selectedProcess.isCompleted = true;
+                        let completionTime = endTime;
+                        let tat = completionTime - selectedProcess.at;
+                        let wt = tat - selectedProcess.bt;
+
+                        results.push({
+                            ...selectedProcess,
+                            ct: completionTime,
+                            tat: tat,
+                            wt: wt
+                        });
+                    }
+                    // If not completed, it will go back to the queue in next iteration
+                } else {
+                    // For FCFS and SJF, execute to completion
+                    let startTime = currentTime;
+                    let completionTime = startTime + selectedProcess.bt;
+                    let tat = completionTime - selectedProcess.at;
+                    let wt = tat - selectedProcess.bt;
 
                 currentTime = completionTime;
                 remainingProcesses[selectedIndex].isCompleted = true;
@@ -1074,7 +1113,7 @@
         // Global variable to store process data
         window.processData = [];
 
-        // Algorithm mapping (Removed RR)
+        // Algorithm mapping
         const algorithms = {
             'FCFS': calculateFCFS,
             'SJF': calculateSJF,
